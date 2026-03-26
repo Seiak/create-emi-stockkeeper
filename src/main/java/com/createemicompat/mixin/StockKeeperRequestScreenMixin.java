@@ -77,8 +77,10 @@ public class StockKeeperRequestScreenMixin {
     @Unique private static Field createemicompat$hiddenCategoriesField;
     @Unique private static Field createemicompat$itemsXField;
     @Unique private static Field createemicompat$itemsYField;
+    @Unique private static Field createemicompat$itemScrollField;
     @Unique private static Method createemicompat$getHoveredSlotMethod;
     @Unique private static Method createemicompat$getOrderForItemMethod;
+    @Unique private static Method createemicompat$lerpedFloatGetValue;
 
     static {
         try {
@@ -95,6 +97,11 @@ public class StockKeeperRequestScreenMixin {
             createemicompat$itemsYField =
                 StockKeeperRequestScreen.class.getDeclaredField("itemsY");
             createemicompat$itemsYField.setAccessible(true);
+        } catch (NoSuchFieldException ignored) {}
+        try {
+            createemicompat$itemScrollField =
+                StockKeeperRequestScreen.class.getDeclaredField("itemScroll");
+            createemicompat$itemScrollField.setAccessible(true);
         } catch (NoSuchFieldException ignored) {}
         try {
             createemicompat$getHoveredSlotMethod =
@@ -199,11 +206,10 @@ public class StockKeeperRequestScreenMixin {
     @Inject(method = "m_7286_", at = @At("HEAD"))
     private void createemicompat$ensureListSync(GuiGraphics graphics, float partialTick,
                                                  int mouseX, int mouseY, CallbackInfo ci) {
-        // Safety: if lists got out of sync, remove our injected category
+        // Safety: if lists got out of sync, just mark our category as gone
+        // Don't modify lists here as it can interfere with scroll state
         if (createemicompat$hasCategory && displayedItems != null && categories != null
                 && displayedItems.size() != categories.size()) {
-            if (!displayedItems.isEmpty()) displayedItems.remove(0);
-            if (!categories.isEmpty()) categories.remove(0);
             createemicompat$hasCategory = false;
         }
     }
@@ -219,12 +225,15 @@ public class StockKeeperRequestScreenMixin {
             int itemsY = createemicompat$itemsYField != null ?
                 createemicompat$itemsYField.getInt(this) : 0;
 
+            // Account for scroll offset
+            float scrollOffset = createemicompat$getScrollOffset(partialTick);
+
             Font font = Minecraft.getInstance().font;
             int headerTextWidth = font.width("Recipe Ingredients");
 
-            // Gear icon position: to the right of the header text, vertically centered
+            // Gear icon position: to the right of the header text, scrolls with content
             createemicompat$gearX = itemsX + 14 + headerTextWidth + 4;
-            createemicompat$gearY = itemsY + 8;
+            createemicompat$gearY = (int) (itemsY + 8 - scrollOffset);
 
             // Draw gear icon (⚙ character)
             String gear = "\u2699";
@@ -523,6 +532,23 @@ public class StockKeeperRequestScreenMixin {
         String key = stack.getItem().toString();
         if (stack.hasTag()) key += stack.getTag().toString();
         return key;
+    }
+
+    @Unique
+    private float createemicompat$getScrollOffset(float partialTick) {
+        try {
+            if (createemicompat$itemScrollField == null) return 0;
+            Object lerpedFloat = createemicompat$itemScrollField.get(this);
+            if (lerpedFloat == null) return 0;
+            // Find getValue(float) method on LerpedFloat if not cached
+            if (createemicompat$lerpedFloatGetValue == null) {
+                createemicompat$lerpedFloatGetValue =
+                    lerpedFloat.getClass().getMethod("getValue", float.class);
+            }
+            return (Float) createemicompat$lerpedFloatGetValue.invoke(lerpedFloat, partialTick);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     @Unique
