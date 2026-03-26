@@ -426,7 +426,7 @@ public class StockKeeperRequestScreenMixin {
             String neededStr = "x" + createemicompat$formatCount(remaining);
 
             graphics.pose().pushPose();
-            graphics.pose().translate(0, 0, inStock == 0 ? 500 : 300);
+            graphics.pose().translate(0, 0, inStock == 0 ? 260 : 200);
             float textScale = 0.65f;
             graphics.pose().scale(textScale, textScale, 1.0f);
 
