@@ -111,9 +111,13 @@ public class StockKeeperRequestScreenMixin {
     private void createemicompat$insertRecipeCategory(boolean scrollBackUp, CallbackInfo ci) {
         createemicompat$hasCategory = false;
 
+        // Safety: ensure lists are in sync before we touch them
+        if (displayedItems == null || categories == null) return;
+        if (displayedItems.size() != categories.size()) return;
+
         List<EmiFavorite.Synthetic> synthetics = EmiFavorites.syntheticFavorites;
         if (synthetics == null || synthetics.isEmpty()) return;
-        if (displayedItems == null || displayedItems.isEmpty()) return;
+        if (displayedItems.isEmpty()) return;
 
         int size = synthetics.size();
         int hash = System.identityHashCode(synthetics);
@@ -130,7 +134,8 @@ public class StockKeeperRequestScreenMixin {
             if (category == null) continue;
             for (BigItemStack bis : category) {
                 if (createemicompat$isInCache(bis.stack)) {
-                    recipeItems.add(bis);
+                    // Create a new BigItemStack referencing the same stack but independent count
+                    recipeItems.add(new BigItemStack(bis.stack, bis.count));
                     foundKeys.add(createemicompat$itemKey(bis.stack));
                 }
             }
@@ -187,6 +192,18 @@ public class StockKeeperRequestScreenMixin {
     // GEAR ICON + SETTINGS PANEL RENDERING
     // =============================================
 
+    @Inject(method = "m_7286_", at = @At("HEAD"))
+    private void createemicompat$ensureListSync(GuiGraphics graphics, float partialTick,
+                                                 int mouseX, int mouseY, CallbackInfo ci) {
+        // Safety: if lists got out of sync, remove our injected category
+        if (createemicompat$hasCategory && displayedItems != null && categories != null
+                && displayedItems.size() != categories.size()) {
+            if (!displayedItems.isEmpty()) displayedItems.remove(0);
+            if (!categories.isEmpty()) categories.remove(0);
+            createemicompat$hasCategory = false;
+        }
+    }
+
     @Inject(method = "m_7286_", at = @At("TAIL"))
     private void createemicompat$renderGearAndPanel(GuiGraphics graphics, float partialTick,
                                                      int mouseX, int mouseY, CallbackInfo ci) {
@@ -201,10 +218,9 @@ public class StockKeeperRequestScreenMixin {
             Font font = Minecraft.getInstance().font;
             int headerTextWidth = font.width("Recipe Ingredients");
 
-            // Gear icon position: to the right of the header text
-            // Header is at approximately (itemsX + 12, itemsY + 3)
+            // Gear icon position: to the right of the header text, vertically centered
             createemicompat$gearX = itemsX + 14 + headerTextWidth + 4;
-            createemicompat$gearY = itemsY + 3;
+            createemicompat$gearY = itemsY + 8;
 
             // Draw gear icon (⚙ character)
             String gear = "\u2699";
@@ -383,6 +399,14 @@ public class StockKeeperRequestScreenMixin {
         long remaining = Math.max(0, needed - ordered);
         int inStock = entry.count;
 
+        // Render missing item icons (Create skips rendering when count == 0)
+        if (inStock == 0) {
+            graphics.pose().pushPose();
+            graphics.pose().translate(1, 1, 232);
+            graphics.renderItem(entryStack, 0, 0);
+            graphics.pose().popPose();
+        }
+
         // Color highlights
         if (ModConfig.colorHighlights) {
             int highlightColor;
@@ -402,7 +426,7 @@ public class StockKeeperRequestScreenMixin {
             String neededStr = "x" + createemicompat$formatCount(remaining);
 
             graphics.pose().pushPose();
-            graphics.pose().translate(0, 0, 300);
+            graphics.pose().translate(0, 0, inStock == 0 ? 500 : 300);
             float textScale = 0.65f;
             graphics.pose().scale(textScale, textScale, 1.0f);
 
