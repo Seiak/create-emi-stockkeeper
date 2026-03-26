@@ -1,0 +1,70 @@
+plugins {
+    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
+    id 'java'
+}
+
+version = mod_version
+group = 'com.createemicompat'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    mappings channel: 'official', version: minecraft_version
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${project.buildDir}/createSrgToMcp/output.srg"
+
+            mods {
+                createemicompat {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+    config "${mod_id}.mixins.json"
+}
+
+repositories {
+    maven {
+        name = "CurseMaven"
+        url  = "https://www.cursemaven.com"
+        content { includeGroup "curse.maven" }
+    }
+    maven {
+        name = "TerraformersMC"
+        url = "https://maven.terraformersmc.com/"
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // Create + EMI as compile-only dependencies (provided at runtime by modpack)
+    // Drop your Create and EMI jars into the libs/ folder
+    compileOnly fg.deobf(fileTree(dir: 'libs', include: ['*.jar']))
+
+    // Mixin annotation processor
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+jar {
+    manifest {
+        attributes([
+            "Specification-Title"    : mod_id,
+            "Specification-Version"  : mod_version,
+            "Implementation-Title"   : "Create-EMI Stockkeeper Compat",
+            "Implementation-Version" : mod_version,
+            "MixinConfigs"           : "${mod_id}.mixins.json",
+        ])
+    }
+}

@@ -1,0 +1,42 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "MIT"
+
+[[mods]]
+modId = "createemicompat"
+version = "${file.jarVersion}"
+displayName = "Create-EMI Stockkeeper Compat"
+description = '''
+Highlights items in the Create Stockkeeper UI that match
+your pinned EMI recipe tree (synthetic favorites).
+'''
+
+# ── Dependencies ──
+
+[[dependencies.createemicompat]]
+modId = "forge"
+mandatory = true
+versionRange = "[47,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.createemicompat]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.20.1,1.21)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.createemicompat]]
+modId = "create"
+mandatory = true
+versionRange = "*"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.createemicompat]]
+modId = "emi"
+mandatory = true
+versionRange = "*"
+ordering = "AFTER"
+side = "CLIENT"

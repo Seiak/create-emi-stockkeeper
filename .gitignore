@@ -1,0 +1,26 @@
+# Gradle
+build/
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.launch
+.settings/
+.classpath
+.project
+bin/
+
+# Minecraft / Forge
+run/
+logs/
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Dependencies (keep in libs/ but ignore jars)
+libs/*.jar
