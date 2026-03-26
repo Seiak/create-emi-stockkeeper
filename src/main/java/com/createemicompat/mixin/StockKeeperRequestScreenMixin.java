@@ -47,6 +47,11 @@ public class StockKeeperRequestScreenMixin {
     @Unique private static int createemicompat$lastSyntheticsSize = -1;
     @Unique private static int createemicompat$lastSyntheticsHash = 0;
 
+    // Synthetic group tracking (for collapsing tag variants)
+    @Unique private static Map<Integer, Long> createemicompat$syntheticNeeded = new HashMap<>();
+    @Unique private static Map<Integer, ItemStack> createemicompat$syntheticRepresentative = new HashMap<>();
+    @Unique private static Map<String, Set<Integer>> createemicompat$itemToSynthetics = new HashMap<>();
+
     @Unique private static final int createemicompat$ROW_HEIGHT = 20;
     @Unique private static final int createemicompat$COLS = 9;
     @Unique private static final int createemicompat$PSEUDO_CATEGORY_ID = -2;
@@ -127,33 +132,32 @@ public class StockKeeperRequestScreenMixin {
             createemicompat$lastSyntheticsHash = hash;
         }
 
-        Set<String> foundKeys = new HashSet<>();
+        Set<Integer> satisfiedSynthetics = new HashSet<>();
         List<BigItemStack> recipeItems = new ArrayList<>();
 
         for (List<BigItemStack> category : displayedItems) {
             if (category == null) continue;
             for (BigItemStack bis : category) {
                 if (createemicompat$isInCache(bis.stack)) {
-                    // Create a new BigItemStack referencing the same stack but independent count
                     recipeItems.add(new BigItemStack(bis.stack, bis.count));
-                    foundKeys.add(createemicompat$itemKey(bis.stack));
+                    // Mark all synthetics this item satisfies
+                    String key = createemicompat$itemKey(bis.stack);
+                    Set<Integer> synthIndices = createemicompat$itemToSynthetics.get(key);
+                    if (synthIndices != null) satisfiedSynthetics.addAll(synthIndices);
                 }
             }
         }
 
-        // Add missing items if enabled
+        // Add ONE missing entry per unsatisfied synthetic group
         if (ModConfig.showMissingItems) {
-            for (Map.Entry<Item, List<ItemStack>> entry : createemicompat$cacheStacks.entrySet()) {
-                for (ItemStack cachedStack : entry.getValue()) {
-                    if (cachedStack.isDamageableItem()) continue;
-                    String key = createemicompat$itemKey(cachedStack);
-                    if (!foundKeys.contains(key)) {
-                        ItemStack displayStack = cachedStack.copy();
-                        displayStack.setCount(1);
-                        recipeItems.add(new BigItemStack(displayStack, 0));
-                        foundKeys.add(key);
-                    }
-                }
+            for (Map.Entry<Integer, ItemStack> entry : createemicompat$syntheticRepresentative.entrySet()) {
+                int synthIdx = entry.getKey();
+                if (satisfiedSynthetics.contains(synthIdx)) continue;
+                ItemStack rep = entry.getValue();
+                if (rep.isDamageableItem()) continue;
+                ItemStack displayStack = rep.copy();
+                displayStack.setCount(1);
+                recipeItems.add(new BigItemStack(displayStack, 0));
             }
         }
 
@@ -447,11 +451,32 @@ public class StockKeeperRequestScreenMixin {
     private static void createemicompat$rebuildCache(List<EmiFavorite.Synthetic> synthetics) {
         createemicompat$cache.clear();
         createemicompat$cacheStacks.clear();
-        for (EmiFavorite.Synthetic synthetic : synthetics) {
+        createemicompat$syntheticNeeded.clear();
+        createemicompat$syntheticRepresentative.clear();
+        createemicompat$itemToSynthetics.clear();
+
+        for (int synthIdx = 0; synthIdx < synthetics.size(); synthIdx++) {
+            EmiFavorite.Synthetic synthetic = synthetics.get(synthIdx);
             long needed = synthetic.amount;
-            for (EmiStack emiStack : synthetic.getEmiStacks()) {
+            createemicompat$syntheticNeeded.put(synthIdx, needed);
+
+            List<EmiStack> emiStacks = synthetic.getEmiStacks();
+            boolean first = true;
+            for (EmiStack emiStack : emiStacks) {
                 ItemStack stack = emiStack.getItemStack();
                 if (!stack.isEmpty()) {
+                    // Track first variant as representative for missing items
+                    if (first) {
+                        createemicompat$syntheticRepresentative.put(synthIdx, stack.copy());
+                        first = false;
+                    }
+
+                    // Reverse lookup: itemKey -> which synthetics it satisfies
+                    String key = createemicompat$itemKey(stack);
+                    createemicompat$itemToSynthetics
+                        .computeIfAbsent(key, k -> new HashSet<>())
+                        .add(synthIdx);
+
                     createemicompat$cacheStacks
                         .computeIfAbsent(stack.getItem(), k -> new ArrayList<>())
                         .add(stack);
