@@ -81,6 +81,7 @@ public class StockKeeperRequestScreenMixin {
     @Unique private static Method createemicompat$getHoveredSlotMethod;
     @Unique private static Method createemicompat$getOrderForItemMethod;
     @Unique private static Method createemicompat$lerpedFloatGetValue;
+    @Unique private static Method createemicompat$clampScrollBarMethod;
 
     static {
         try {
@@ -113,6 +114,11 @@ public class StockKeeperRequestScreenMixin {
                 StockKeeperRequestScreen.class.getDeclaredMethod("getOrderForItem", ItemStack.class);
             createemicompat$getOrderForItemMethod.setAccessible(true);
         } catch (NoSuchMethodException ignored) {}
+        try {
+            createemicompat$clampScrollBarMethod =
+                StockKeeperRequestScreen.class.getDeclaredMethod("clampScrollBar");
+            createemicompat$clampScrollBarMethod.setAccessible(true);
+        } catch (NoSuchMethodException ignored) {}
     }
 
     // =============================================
@@ -139,33 +145,51 @@ public class StockKeeperRequestScreenMixin {
             createemicompat$lastSyntheticsHash = hash;
         }
 
-        Set<Integer> satisfiedSynthetics = new HashSet<>();
-        List<BigItemStack> recipeItems = new ArrayList<>();
-
+        // Build a quick lookup of stockkeeper items: itemKey -> BigItemStack
+        Map<String, BigItemStack> stockLookup = new HashMap<>();
         for (List<BigItemStack> category : displayedItems) {
             if (category == null) continue;
             for (BigItemStack bis : category) {
-                if (createemicompat$isInCache(bis.stack)) {
-                    recipeItems.add(new BigItemStack(bis.stack, bis.count));
-                    // Mark all synthetics this item satisfies
-                    String key = createemicompat$itemKey(bis.stack);
-                    Set<Integer> synthIndices = createemicompat$itemToSynthetics.get(key);
-                    if (synthIndices != null) satisfiedSynthetics.addAll(synthIndices);
-                }
+                stockLookup.put(createemicompat$itemKey(bis.stack), bis);
             }
         }
 
-        // Add ONE missing entry per unsatisfied synthetic group
-        if (ModConfig.showMissingItems) {
-            for (Map.Entry<Integer, ItemStack> entry : createemicompat$syntheticRepresentative.entrySet()) {
-                int synthIdx = entry.getKey();
-                if (satisfiedSynthetics.contains(synthIdx)) continue;
-                ItemStack rep = entry.getValue();
-                if (rep.isDamageableItem()) continue;
-                ItemStack displayStack = rep.copy();
-                displayStack.setCount(1);
-                recipeItems.add(new BigItemStack(displayStack, 0));
+        // Iterate in synthetic (recipe tree) order
+        List<BigItemStack> recipeItems = new ArrayList<>();
+        Set<Integer> processedSynthetics = new HashSet<>();
+
+        for (int synthIdx = 0; synthIdx < synthetics.size(); synthIdx++) {
+            if (processedSynthetics.contains(synthIdx)) continue;
+
+            EmiFavorite.Synthetic synthetic = synthetics.get(synthIdx);
+            List<EmiStack> variants = synthetic.getEmiStacks();
+
+            // Find the best matching variant in stock
+            BigItemStack bestMatch = null;
+            for (EmiStack emiStack : variants) {
+                ItemStack variantStack = emiStack.getItemStack();
+                if (variantStack.isEmpty()) continue;
+                BigItemStack inStock = stockLookup.get(createemicompat$itemKey(variantStack));
+                if (inStock != null) {
+                    if (bestMatch == null || inStock.count > bestMatch.count) {
+                        bestMatch = inStock;
+                    }
+                }
             }
+
+            if (bestMatch != null) {
+                recipeItems.add(new BigItemStack(bestMatch.stack, bestMatch.count));
+            } else if (ModConfig.showMissingItems) {
+                // No variant in stock — add representative as missing
+                ItemStack rep = createemicompat$syntheticRepresentative.get(synthIdx);
+                if (rep != null && !rep.isDamageableItem()) {
+                    ItemStack displayStack = rep.copy();
+                    displayStack.setCount(1);
+                    recipeItems.add(new BigItemStack(displayStack, 0));
+                }
+            }
+
+            processedSynthetics.add(synthIdx);
         }
 
         if (recipeItems.isEmpty()) return;
@@ -197,6 +221,13 @@ public class StockKeeperRequestScreenMixin {
         categories.add(0, recipeCategory);
         displayedItems.add(0, recipeItems);
         createemicompat$hasCategory = true;
+
+        // Re-clamp scroll bar now that content height has changed
+        try {
+            if (createemicompat$clampScrollBarMethod != null) {
+                createemicompat$clampScrollBarMethod.invoke(this);
+            }
+        } catch (Exception ignored) {}
     }
 
     // =============================================
