@@ -256,15 +256,12 @@ public class StockKeeperRequestScreenMixin {
             int itemsY = createemicompat$itemsYField != null ?
                 createemicompat$itemsYField.getInt(this) : 0;
 
-            // Account for scroll offset
-            float scrollOffset = createemicompat$getScrollOffset(partialTick);
-
             Font font = Minecraft.getInstance().font;
-            int headerTextWidth = font.width("Recipe Ingredients");
 
-            // Gear icon position: to the right of the header text, scrolls with content
-            createemicompat$gearX = itemsX + 14 + headerTextWidth + 4;
-            createemicompat$gearY = (int) (itemsY + 8 - scrollOffset);
+            // Fixed position: right edge of the item grid, at the top (above scroll area)
+            int gridRight = itemsX + createemicompat$COLS * 20 + 2;
+            createemicompat$gearX = gridRight - createemicompat$GEAR_SIZE - 2;
+            createemicompat$gearY = itemsY - 14;
 
             // Draw gear icon (⚙ character)
             String gear = "\u2699";
@@ -278,7 +275,7 @@ public class StockKeeperRequestScreenMixin {
             graphics.pose().translate(0, 0, 400);
             graphics.drawString(font, gear, createemicompat$gearX, createemicompat$gearY, gearColor, true);
 
-            // Settings panel
+            // Settings panel (drops down from gear)
             if (ModConfig.settingsOpen) {
                 createemicompat$panelX = createemicompat$gearX - createemicompat$PANEL_WIDTH + createemicompat$GEAR_SIZE;
                 createemicompat$panelY = createemicompat$gearY + createemicompat$GEAR_SIZE + 2;
