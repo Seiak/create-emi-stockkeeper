@@ -258,9 +258,8 @@ public class StockKeeperRequestScreenMixin {
 
             Font font = Minecraft.getInstance().font;
 
-            // Fixed position: right edge of the item grid, at the top (above scroll area)
-            int gridRight = itemsX + createemicompat$COLS * 20 + 2;
-            createemicompat$gearX = gridRight - createemicompat$GEAR_SIZE - 2;
+            // Fixed position: top-left of the item grid, above scroll area
+            createemicompat$gearX = itemsX;
             createemicompat$gearY = itemsY - 14;
 
             // Draw gear icon (⚙ character)
@@ -277,7 +276,7 @@ public class StockKeeperRequestScreenMixin {
 
             // Settings panel (drops down from gear)
             if (ModConfig.settingsOpen) {
-                createemicompat$panelX = createemicompat$gearX - createemicompat$PANEL_WIDTH + createemicompat$GEAR_SIZE;
+                createemicompat$panelX = createemicompat$gearX;
                 createemicompat$panelY = createemicompat$gearY + createemicompat$GEAR_SIZE + 2;
 
                 int panelHeight = ModConfig.LABELS.length * createemicompat$PANEL_ENTRY_HEIGHT + 6;
