@@ -58,6 +58,8 @@ cd create-emi-stockkeeper
 
 This mod was built with the assistance of AI (Claude) because the functionality didn't exist and I needed it. If that bothers you, don't download it — or better yet, take the code and make it better. That's why it's MIT licensed.
 
+This was developed and tested with [TerraFirmaGreg](https://github.com/TerraFirmaGreg-Team/Modpack-Modern) (TFG) in mind. It should work with any modpack running Create 6.0+ and EMI on Forge 1.20.1, but your experience may vary outside of TFG.
+
 ## License
 
 [MIT](LICENSE) — do whatever you want with it.
