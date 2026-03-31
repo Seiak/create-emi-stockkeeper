@@ -54,6 +54,10 @@ cd create-emi-stockkeeper
 # Output: build/libs/create-emi-stockkeeper-*.jar
 ```
 
+## Disclaimer
+
+This mod was built with the assistance of AI (Claude) because the functionality didn't exist and I needed it. If that bothers you, don't download it — or better yet, take the code and make it better. That's why it's MIT licensed.
+
 ## License
 
 [MIT](LICENSE) — do whatever you want with it.
